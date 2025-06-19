@@ -1,7 +1,7 @@
 id: misconfigured-security-txt-disclosure
 info:
   name: Misconfigured Security.txt Information Disclosure
-  author: UnaPibaGeek
+  author: XPLTR
   tags: info-disclosure, security.txt, well-known, misconfiguration, internal, sensitive-data, exposure, disclosure
   severity: low # Can be medium if highly sensitive data is found regularly
   description: |
