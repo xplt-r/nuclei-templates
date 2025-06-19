@@ -1,0 +1,40 @@
+id: misconfigured-security-txt-disclosure
+info:
+  name: Misconfigured Security.txt Information Disclosure
+  author: UnaPibaGeek
+  tags: info-disclosure, security.txt, well-known, misconfiguration, internal, sensitive-data, exposure, disclosure
+  severity: low # Can be medium if highly sensitive data is found regularly
+  description: |
+    Checks for the presence of 'security.txt' or '.well-known/security.txt' files that may inadvertently contain
+    sensitive internal comments, unredacted ticket numbers, internal email addresses, or developer TODOs.
+    This indicates a potential information disclosure risk.
+  reference:
+    - https://securitytxt.org/
+    - https://owasp.org/www-project-top-ten/2017/A3_2017-Sensitive_Data_Exposure
+    - https://owasp.org/www-project-top-ten/2021/A01_2021-Broken_Access_Control # Sometimes internal files aren't properly restricted.
+
+requests:
+  - raw:
+      - |
+        GET /.well-known/security.txt HTTP/1.1
+        Host: {{Hostname}}
+        User-Agent: Nuclei/{{Version}}
+        Accept: */*
+
+      - |
+        GET /security.txt HTTP/1.1
+        Host: {{Hostname}}
+        User-Agent: Nuclei/{{Version}}
+        Accept: */*
+
+    matchers-condition: and # Both status and content conditions must be met across any request
+    matchers:
+      - type: status
+        status:
+          - 200 # Ensure the file was found and accessible
+      - type: regex
+        regex:
+          - "(?i)(#\\s*internal|jira\\.[a-zA-Z0-9-]+\\.[a-zA-Z]{2,}|ticket-[0-9]{4,}|email:\\s*[a-zA-Z0-9._%+-]+@(?:internal|dev|corp)\\.[a-zA-Z0-9-]+\\.[a-zA-Z]{2,}|\\bconfidential\\b|\\bprivate\\b|\\bdo\\s+not\\s+distribute\\b|//\\s*TODO:|bugzilla\\.[a-zA-Z0-9-]+\\.[a-zA-Z]{2,})"
+        part: body # Look for these patterns in the file's content
+        case-insensitive: true # Match regardless of case
+        condition: or # Match if ANY of these regex patterns are found
