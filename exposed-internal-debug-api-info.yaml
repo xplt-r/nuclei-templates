@@ -1,0 +1,82 @@
+id: exposed-internal-debug-api-info
+info:
+  name: Exposed Internal Debug API Information
+  author: XPLTR
+  tags: debug, info-disclosure, api, misconfiguration, internal, sensitive
+  severity: medium # Severity can be adjusted based on the actual impact
+  description: |
+    Checks for the accidental exposure of debug-related headers on common API endpoints. 
+    If found, it attempts to access known or likely internal/debug API paths that might 
+    reveal sensitive configuration, internal routes, or other critical application data.
+  reference:
+    - https://owasp.org/www-project-top-ten/2017/A3_2017-Sensitive_Data_Exposure
+    - https://book.hacktricks.xyz/pentesting-web/debug-parameters
+    - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers
+
+requests:
+  - raw:
+      - |
+        GET /api/v1/status HTTP/1.1
+        Host: {{Hostname}}
+        User-Agent: Nuclei/{{Version}}
+        Accept: */*
+        # Initial request to a common endpoint to check for debug headers
+
+    matchers-condition: and # Both conditions must be met for this step to pass
+    matchers:
+      - type: status
+        status:
+          - 200 # Ensure the initial request was successful
+      - type: regex
+        regex:
+          - "X-Debug-Token:|X-App-Debug:|X-API-Debug:" # Check for specific debug headers
+        part: header # Look for these in the response headers
+        case-insensitive: true # Case-insensitive match for headers
+
+    extractors: # Extract the debug token if found to use in subsequent requests
+      - type: regex
+        part: header
+        name: debug_token
+        regex:
+          - "X-Debug-Token: (.+)" # Capture the value after the header name
+          - "X-App-Debug: (.+)"
+          - "X-API-Debug: (.+)"
+        case-insensitive: true
+        internal: true # Mark as internal so it's not printed, but available for next request
+
+  - raw:
+      - |
+        GET /debug/routes HTTP/1.1 # Attempt to access a common debug route
+        Host: {{Hostname}}
+        User-Agent: Nuclei/{{Version}}
+        Accept: */*
+        {{- if .debug_token }} # Conditionally add the extracted debug token
+        X-Debug-Token: {{debug_token}}
+        {{- end}}
+
+      - |
+        GET /api/internal/config HTTP/1.1 # Attempt to access another internal configuration path
+        Host: {{Hostname}}
+        User-Agent: Nuclei/{{Version}}
+        Accept: */*
+        {{- if .debug_token }} # Conditionally add the extracted debug token
+        X-Debug-Token: {{debug_token}}
+        {{- end}}
+
+    matchers-condition: and # All conditions must be met for the entire template to trigger
+    matchers:
+      - type: status
+        status:
+          - 200 # Ensure the debug/internal requests were successful
+      - type: word
+        words: # Look for these sensitive keywords in the response body of the debug/internal endpoints
+          - "internal routes"
+          - "database_config"
+          - "secret_key"
+          - "API_KEYS"
+          - "application_secrets"
+          - "debug_mode"
+          - "credentials"
+          - "db_password"
+        part: body
+        case-insensitive: true # Case-insensitive match for body content
