@@ -2,7 +2,7 @@ id: cloud-storage-buckets
 
 info:
   name: Cloud Storage Buckets in JavaScript Files
-  author: security-researcher
+  author: xpltr
   severity: info
   description: Detects cloud storage bucket URLs in JavaScript files that could lead to information disclosure
   classification:
